@@ -133,7 +133,10 @@ function ProfileScreen(props: {
 
   return (
     <div className="screen">
-      <h1 className="logo">🎲 Yahtzee</h1>
+      <h1 className="logo">
+        <span className="logo-dice">🎲🎲🎲🎲🎲</span>
+        Yahtzee
+      </h1>
       <div className="card">
         <h2>Who's playing?</h2>
         {props.players.length > 0 && (

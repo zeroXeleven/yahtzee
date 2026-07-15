@@ -41,6 +41,13 @@ body {
   margin: 24px 0 12px;
 }
 
+.logo-dice {
+  display: block;
+  font-size: 1.6rem;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);
@@ -295,6 +302,53 @@ button {
 
 .cell:disabled {
   cursor: default;
+}
+
+.cell.readonly {
+  display: inline-block;
+  width: 100%;
+  min-height: 42px;
+  line-height: 42px;
+  color: var(--muted);
+}
+
+/* "you" indicator */
+.you-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+
+.you-tag {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  vertical-align: middle;
+}
+
+.sheet-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid #f87171;
+  border-radius: 10px;
+  color: #fca5a5;
+  font-size: 0.9rem;
+  text-align: center;
 }
 
 .subtotal td {

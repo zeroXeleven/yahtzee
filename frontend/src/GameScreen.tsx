@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from './api'
+import type { CategoryMeta } from './constants'
 import type { GameState, GamePlayer, Player } from './types'
 import { CATEGORY_META, LOWER_CATEGORIES, UPPER_CATEGORIES } from './constants'
 
@@ -40,14 +41,16 @@ export default function GameScreen(props: {
   }, [refresh, props.code])
 
   const finished = game.status === 'finished'
+  const meInGame = game.players.some((p) => p.player_id === props.me.id)
 
-  async function submitScore(gpId: number, catKey: string, value: number) {
-    setErr(null)
+  // Returns an error message to show in the sheet, or null on success.
+  async function submitScore(gpId: number, catKey: string, value: number): Promise<string | null> {
     try {
       setGame(await api.score(props.code, gpId, catKey, value))
       setEditing(null)
+      return null
     } catch (e) {
-      setErr((e as Error).message)
+      return (e as Error).message
     }
   }
 
@@ -96,6 +99,16 @@ export default function GameScreen(props: {
         )}
       </div>
 
+      {meInGame ? (
+        <div className="you-bar">
+          You’re <span className="dot" style={{ background: props.me.color }} />
+          <b>{props.me.name}</b>
+          <span className="muted"> · you score your own column</span>
+        </div>
+      ) : (
+        <div className="you-bar muted">Viewing — you’re not a player in this game</div>
+      )}
+
       {winner && (
         <div className="winner-banner">
           🏆 {winner.name} wins with {winner.totals.grand_total}!
@@ -109,15 +122,16 @@ export default function GameScreen(props: {
           <thead>
             <tr>
               <th className="rowhead corner">Category</th>
-              {game.players.map((p) => (
-                <th
-                  key={p.game_player_id}
-                  className={'playercol' + (p.player_id === props.me.id ? ' me' : '')}
-                >
-                  <span className="dot" style={{ background: p.color }} />
-                  {p.name}
-                </th>
-              ))}
+              {game.players.map((p) => {
+                const isMe = p.player_id === props.me.id
+                return (
+                  <th key={p.game_player_id} className={'playercol' + (isMe ? ' me' : '')}>
+                    <span className="dot" style={{ background: p.color }} />
+                    {p.name}
+                    {isMe && <span className="you-tag">you</span>}
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
@@ -129,7 +143,7 @@ export default function GameScreen(props: {
                   <ScoreCell
                     key={p.game_player_id}
                     value={p.scores[cat.key]}
-                    disabled={finished}
+                    editable={p.player_id === props.me.id && !finished}
                     onClick={() => setEditing({ gpId: p.game_player_id, catKey: cat.key })}
                   />
                 ))}
@@ -152,7 +166,7 @@ export default function GameScreen(props: {
                   <ScoreCell
                     key={p.game_player_id}
                     value={p.scores[cat.key]}
-                    disabled={finished}
+                    editable={p.player_id === props.me.id && !finished}
                     onClick={() => setEditing({ gpId: p.game_player_id, catKey: cat.key })}
                   />
                 ))}
@@ -161,21 +175,26 @@ export default function GameScreen(props: {
             <tr className="subtotal">
               <td className="rowhead">Yahtzee bonus (+100)</td>
               {game.players.map((p) => {
-                const canBonus = p.scores['yahtzee'] === 50 && !finished
+                const isMe = p.player_id === props.me.id
+                const canBonus = isMe && p.scores['yahtzee'] === 50 && !finished
                 return (
                   <td key={p.game_player_id} className="num">
-                    <div className="stepper">
-                      <button
-                        disabled={finished || p.yahtzee_bonus_count === 0}
-                        onClick={() => changeBonus(p, -1)}
-                      >
-                        −
-                      </button>
+                    {isMe && !finished ? (
+                      <div className="stepper">
+                        <button
+                          disabled={p.yahtzee_bonus_count === 0}
+                          onClick={() => changeBonus(p, -1)}
+                        >
+                          −
+                        </button>
+                        <span>{p.yahtzee_bonus_count}</span>
+                        <button disabled={!canBonus} onClick={() => changeBonus(p, +1)}>
+                          +
+                        </button>
+                      </div>
+                    ) : (
                       <span>{p.yahtzee_bonus_count}</span>
-                      <button disabled={!canBonus} onClick={() => changeBonus(p, +1)}>
-                        +
-                      </button>
-                    </div>
+                    )}
                   </td>
                 )
               })}
@@ -216,17 +235,23 @@ function SectionLabel(props: { span: number; text: string }) {
 
 function ScoreCell(props: {
   value: number | undefined
-  disabled: boolean
+  editable: boolean
   onClick: () => void
 }) {
   const filled = props.value !== undefined
+  const cls =
+    'cell' + (filled ? ' filled' : '') + (props.value === 0 ? ' scratch' : '')
+
+  if (!props.editable) {
+    return (
+      <td className="num">
+        <span className={cls + ' readonly'}>{filled ? props.value : ''}</span>
+      </td>
+    )
+  }
   return (
     <td className="num">
-      <button
-        className={'cell' + (filled ? ' filled' : '') + (props.value === 0 ? ' scratch' : '')}
-        disabled={props.disabled}
-        onClick={props.onClick}
-      >
+      <button className={cls} onClick={props.onClick}>
         {filled ? props.value : '+'}
       </button>
     </td>
@@ -235,15 +260,33 @@ function ScoreCell(props: {
 
 function ScoreSheet(props: {
   playerName: string
-  category: import('./constants').CategoryMeta
+  category: CategoryMeta
   current: number | undefined
   onCancel: () => void
-  onPick: (value: number) => void
+  onPick: (value: number) => Promise<string | null>
 }) {
   const { category: cat } = props
   const [sumValue, setSumValue] = useState(
     props.current && props.current > 0 ? String(props.current) : '',
   )
+  const [err, setErr] = useState<string | null>(null)
+
+  // Submit a value; server errors come back and render inside the sheet.
+  async function pick(value: number) {
+    setErr(null)
+    const problem = await props.onPick(value)
+    if (problem) setErr(problem)
+  }
+
+  // Sum entry: validate the range client-side for instant, contextual feedback.
+  function saveSum() {
+    const v = Number(sumValue || 0)
+    if (v !== 0 && (v < 5 || v > 30)) {
+      setErr(`Must be 0 or 5–30 — you entered ${v}`)
+      return
+    }
+    void pick(v)
+  }
 
   return (
     <div className="sheet-backdrop" onClick={props.onCancel}>
@@ -258,7 +301,7 @@ function ScoreSheet(props: {
             <p className="muted">How many {cat.label.toLowerCase()}?</p>
             <div className="btn-grid">
               {[0, 1, 2, 3, 4, 5].map((n) => (
-                <button key={n} className="big-btn" onClick={() => props.onPick(n * cat.face!)}>
+                <button key={n} className="big-btn" onClick={() => pick(n * cat.face!)}>
                   {n}
                   <small>{n * cat.face!} pts</small>
                 </button>
@@ -269,11 +312,11 @@ function ScoreSheet(props: {
 
         {cat.kind === 'fixed' && (
           <div className="btn-row">
-            <button className="big-btn good" onClick={() => props.onPick(cat.fixed!)}>
+            <button className="big-btn good" onClick={() => pick(cat.fixed!)}>
               Got it
               <small>{cat.fixed} pts</small>
             </button>
-            <button className="big-btn bad" onClick={() => props.onPick(0)}>
+            <button className="big-btn bad" onClick={() => pick(0)}>
               Scratch
               <small>0 pts</small>
             </button>
@@ -287,25 +330,34 @@ function ScoreSheet(props: {
               className="text-input"
               type="number"
               inputMode="numeric"
+              enterKeyHint="done"
               min={0}
               max={30}
               value={sumValue}
               autoFocus
-              onChange={(e) => setSumValue(e.target.value)}
+              onChange={(e) => {
+                setSumValue(e.target.value)
+                if (err) setErr(null)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  saveSum()
+                }
+              }}
             />
             <div className="btn-row">
-              <button
-                className="big-btn good"
-                onClick={() => props.onPick(Number(sumValue || 0))}
-              >
+              <button className="big-btn good" onClick={saveSum}>
                 Save
               </button>
-              <button className="big-btn bad" onClick={() => props.onPick(0)}>
+              <button className="big-btn bad" onClick={() => pick(0)}>
                 Scratch
               </button>
             </div>
           </>
         )}
+
+        {err && <p className="sheet-error">{err}</p>}
 
         <button className="link cancel" onClick={props.onCancel}>
           cancel
