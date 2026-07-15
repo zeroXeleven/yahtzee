@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
-import type { GameState, Player } from './types'
+import type { GameState, GameSummary, Player } from './types'
 import { PLAYER_COLORS } from './constants'
 import GameScreen from './GameScreen'
 import HistoryScreen from './HistoryScreen'
@@ -197,6 +197,26 @@ function LobbyScreen(props: {
   const [selected, setSelected] = useState<number[]>([props.me.id])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [myActive, setMyActive] = useState<GameSummary[]>([])
+
+  // My in-progress games, for one-tap rejoin.
+  useEffect(() => {
+    api
+      .listGames('active')
+      .then((games) =>
+        setMyActive(games.filter((g) => g.results.some((r) => r.player_id === props.me.id))),
+      )
+      .catch(() => {})
+  }, [props.me.id])
+
+  async function rejoin(joinCode: string) {
+    setErr(null)
+    try {
+      props.onGame(await api.getGame(joinCode))
+    } catch (e) {
+      setErr((e as Error).message)
+    }
+  }
 
   function toggle(id: number) {
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
@@ -249,6 +269,30 @@ function LobbyScreen(props: {
           switch
         </button>
       </div>
+
+      {myActive.length > 0 && (
+        <div className="card">
+          <h2>Your active games</h2>
+          {myActive.map((g) => (
+            <button key={g.join_code} className="active-game" onClick={() => rejoin(g.join_code)}>
+              <span className="ag-head">
+                <span className="code-badge">
+                  <b>{g.join_code}</b>
+                </span>
+                <span className="ag-players">
+                  {g.results.map((r) => (
+                    <span key={r.player_id} className="ag-player">
+                      <span className="dot" style={{ background: r.color }} />
+                      {r.name} {r.grand_total}
+                    </span>
+                  ))}
+                </span>
+              </span>
+              <span className="ag-rejoin">Rejoin →</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="card">
         <h2>New game</h2>

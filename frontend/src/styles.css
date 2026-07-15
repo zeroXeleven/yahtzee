@@ -473,6 +473,54 @@ button {
   margin: 14px auto 0;
 }
 
+/* active games (quick rejoin) */
+.active-game {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.active-game:last-child {
+  margin-bottom: 0;
+}
+
+.ag-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ag-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.ag-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ag-rejoin {
+  color: #a5b4fc;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* history + stats */
 .nav-row {
   display: flex;
