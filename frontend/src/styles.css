@@ -1,14 +1,15 @@
 :root {
-  --bg: #0f172a;
-  --card: #1e293b;
-  --card-2: #273449;
-  --line: #334155;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --primary: #6366f1;
-  --good: #16a34a;
-  --bad: #64748b;
-  --accent: #f59e0b;
+  /* charcoal + teal */
+  --bg: #16191c;
+  --card: #1f2429;
+  --card-2: #282f36;
+  --line: #3a424a;
+  --text: #e8eaed;
+  --muted: #98a2ab;
+  --primary: #14b8a6; /* teal */
+  --good: #10b981; /* emerald success */
+  --bad: #5b636b; /* neutral */
+  --accent: #2dd4bf; /* bright teal */
 }
 
 * {
@@ -387,7 +388,7 @@ button {
 }
 
 .winner-banner {
-  background: linear-gradient(90deg, var(--accent), #fbbf24);
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
   color: #422006;
   font-weight: 700;
   padding: 14px;
@@ -633,7 +634,7 @@ button {
 }
 
 .ag-rejoin {
-  color: #a5b4fc;
+  color: #5eead4;
   font-weight: 700;
   white-space: nowrap;
 }
