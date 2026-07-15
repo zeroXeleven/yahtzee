@@ -3,13 +3,18 @@ import { api } from './api'
 import type { GameState, Player } from './types'
 import { PLAYER_COLORS } from './constants'
 import GameScreen from './GameScreen'
+import HistoryScreen from './HistoryScreen'
+import StatsScreen from './StatsScreen'
 
 const PROFILE_KEY = 'yahtzee_profile_id'
+
+type Screen = 'home' | 'history' | 'stats'
 
 export default function App() {
   const [players, setPlayers] = useState<Player[]>([])
   const [profile, setProfile] = useState<Player | null>(null)
   const [game, setGame] = useState<GameState | null>(null)
+  const [screen, setScreen] = useState<Screen>('home')
   const [error, setError] = useState<string | null>(null)
 
   // Load profiles once; restore the last-used profile on this device.
@@ -67,9 +72,28 @@ export default function App() {
         code={game.join_code}
         me={profile}
         initial={game}
-        onLeave={() => setGame(null)}
+        onLeave={() => {
+          setGame(null)
+          setScreen('home')
+        }}
       />
     )
+  }
+
+  if (screen === 'history') {
+    return (
+      <HistoryScreen
+        onBack={() => setScreen('home')}
+        onOpen={(g) => {
+          setGame(g)
+          setScreen('home')
+        }}
+      />
+    )
+  }
+
+  if (screen === 'stats') {
+    return <StatsScreen onBack={() => setScreen('home')} />
   }
 
   return (
@@ -78,6 +102,8 @@ export default function App() {
       players={players}
       onGame={setGame}
       onSignOut={signOut}
+      onHistory={() => setScreen('history')}
+      onStats={() => setScreen('stats')}
     />
   )
 }
@@ -161,6 +187,8 @@ function LobbyScreen(props: {
   players: Player[]
   onGame: (g: GameState) => void
   onSignOut: () => void
+  onHistory: () => void
+  onStats: () => void
 }) {
   const [code, setCode] = useState('')
   const [selected, setSelected] = useState<number[]>([props.me.id])
@@ -252,6 +280,15 @@ function LobbyScreen(props: {
         />
         <button className="secondary" disabled={busy || code.trim().length < 4} onClick={joinGame}>
           Join
+        </button>
+      </div>
+
+      <div className="nav-row">
+        <button className="secondary" onClick={props.onHistory}>
+          🗒 History
+        </button>
+        <button className="secondary" onClick={props.onStats}>
+          📊 Stats
         </button>
       </div>
 

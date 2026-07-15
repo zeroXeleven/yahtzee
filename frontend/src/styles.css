@@ -418,3 +418,117 @@ button {
   display: block;
   margin: 14px auto 0;
 }
+
+/* history + stats */
+.nav-row {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-row .secondary {
+  width: auto;
+  flex: 1;
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+.legend {
+  margin-top: 12px;
+}
+
+.history-card {
+  padding: 14px;
+}
+
+.history-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.pill {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.pill.finished {
+  border-color: var(--good);
+  color: #86efac;
+}
+
+.pill.active {
+  border-color: var(--accent);
+  color: #fcd34d;
+}
+
+.history-head .muted {
+  margin-left: auto;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.result-row:last-child {
+  border-bottom: none;
+}
+
+.rank {
+  width: 24px;
+  text-align: center;
+}
+
+.rname {
+  flex: 1;
+}
+
+.rscore {
+  font-weight: 700;
+}
+
+.history-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.link.danger {
+  color: #f87171;
+}
+
+.confirm {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.stats-table th {
+  padding: 8px 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.stats-table td.num {
+  padding: 10px 6px;
+}

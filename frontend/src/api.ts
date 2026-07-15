@@ -1,4 +1,4 @@
-import type { GameState, Player } from './types'
+import type { GameState, GameSummary, Player, PlayerStats } from './types'
 
 async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch('/api' + path, {
@@ -33,6 +33,16 @@ export const api = {
     }),
 
   getGame: (code: string) => req<GameState>(`/games/${code}`),
+
+  listGames: (status: 'all' | 'active' | 'finished' = 'all') =>
+    req<GameSummary[]>(`/games?status=${status}`),
+
+  deleteGame: (code: string) =>
+    fetch(`/api/games/${code}`, { method: 'DELETE' }).then((r) => {
+      if (!r.ok && r.status !== 204) throw new Error('could not delete game')
+    }),
+
+  stats: () => req<PlayerStats[]>('/stats'),
 
   joinGame: (code: string, playerId: number) =>
     req<GameState>(`/games/${code}/join`, {

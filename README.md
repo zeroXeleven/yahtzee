@@ -85,8 +85,9 @@ so the whole app is a single container on a single port.
 
 ## Roadmap
 
+- [x] Game history — review past games, resume active ones, delete junk games
+- [x] Per-player stats across finished games (games played, wins, win rate, average, high score, total Yahtzees)
 - [ ] Virtual dice (roll in-app, pick where the score goes)
-- [ ] Per-player stats & history across games (averages, most Yahtzees, win rate)
 - [ ] Live sync over WebSockets (replacing polling)
 - [ ] Joker-rule helper prompts
 

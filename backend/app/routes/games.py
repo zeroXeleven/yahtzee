@@ -117,6 +117,71 @@ def create_game(body: GameCreate):
     return _game_state(code)
 
 
+@router.get("/games")
+def list_games(status: str = "all"):
+    """History list. `status` = all | active | finished. Newest first."""
+    conn = get_db()
+    try:
+        if status in ("active", "finished"):
+            games = conn.execute(
+                "SELECT * FROM games WHERE status = ? ORDER BY id DESC", (status,)
+            ).fetchall()
+        else:
+            games = conn.execute("SELECT * FROM games ORDER BY id DESC").fetchall()
+
+        out = []
+        for g in games:
+            seats = conn.execute(
+                """SELECT gp.id AS gp_id, gp.player_id, gp.yahtzee_bonus_count,
+                          p.name, p.color
+                     FROM game_players gp
+                     JOIN players p ON p.id = gp.player_id
+                    WHERE gp.game_id = ?
+                    ORDER BY gp.seat_order""",
+                (g["id"],),
+            ).fetchall()
+            results = []
+            for s in seats:
+                rows = conn.execute(
+                    "SELECT category, value FROM scores WHERE game_player_id = ?",
+                    (s["gp_id"],),
+                ).fetchall()
+                scores = {r["category"]: r["value"] for r in rows}
+                totals = compute_totals(scores, s["yahtzee_bonus_count"])
+                results.append({
+                    "player_id": s["player_id"],
+                    "name": s["name"],
+                    "color": s["color"],
+                    "grand_total": totals["grand_total"],
+                    "is_winner": g["winner_player_id"] == s["player_id"],
+                })
+            results.sort(key=lambda r: r["grand_total"], reverse=True)
+            out.append({
+                "join_code": g["join_code"],
+                "status": g["status"],
+                "created_at": g["created_at"],
+                "finished_at": g["finished_at"],
+                "winner_player_id": g["winner_player_id"],
+                "results": results,
+            })
+        return out
+    finally:
+        conn.close()
+
+
+@router.delete("/games/{code}", status_code=204)
+def delete_game(code: str):
+    """Permanently delete a game and its scores (cascades)."""
+    conn = get_db()
+    try:
+        cur = conn.execute("DELETE FROM games WHERE join_code = ?", (code,))
+        conn.commit()
+        if cur.rowcount == 0:
+            raise HTTPException(404, "game not found")
+    finally:
+        conn.close()
+
+
 @router.get("/games/{code}")
 def get_game(code: str):
     return _game_state(code)

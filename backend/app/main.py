@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .db import init_db
-from .routes import games, players
+from .routes import games, players, stats
 
 
 @asynccontextmanager
@@ -25,6 +25,7 @@ app = FastAPI(title="Yahtzee Scorekeeper", lifespan=lifespan)
 
 app.include_router(players.router, prefix="/api")
 app.include_router(games.router, prefix="/api")
+app.include_router(stats.router, prefix="/api")
 
 
 @app.get("/api/health")
