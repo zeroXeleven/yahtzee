@@ -1,0 +1,14 @@
+# Self-host the published image with docker compose.
+#   docker compose up -d
+# Then open http://localhost:8000
+services:
+  yahtzee:
+    image: ghcr.io/zeroxeleven/yahtzee:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - yahtzee-data:/data
+    restart: unless-stopped
+
+volumes:
+  yahtzee-data:

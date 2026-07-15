@@ -1,0 +1,39 @@
+# Development stack: hot-reloading backend + frontend, source bind-mounted.
+# Production ships as the single image built by the root Dockerfile instead.
+#
+#   docker compose up --build      # start everything
+#   docker compose up backend      # backend only
+#
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - yahtzee-data:/data
+    environment:
+      - YAHTZEE_DB_PATH=/data/yahtzee.db
+      # Bind mounts from Windows don't deliver inotify events reliably;
+      # force the reloader to poll so hot reload works.
+      - WATCHFILES_FORCE_POLLING=true
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      # Vite HMR needs polling on Windows bind mounts too.
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - backend
+
+volumes:
+  yahtzee-data:

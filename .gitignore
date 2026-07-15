@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# Local data / SQLite
+data/
+*.db
+*.db-journal
+
+# Env / editor
+.env
+.env.local
+.DS_Store
+.idea/
+.vscode/
