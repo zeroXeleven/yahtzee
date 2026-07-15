@@ -88,7 +88,7 @@ so the whole app is a single container on a single port.
 - [x] Game history — review past games, resume active ones, delete junk games
 - [x] Per-player stats across finished games (games played, wins, win rate, average, high score, total Yahtzees)
 - [ ] Virtual dice (roll in-app, pick where the score goes)
-- [ ] Live sync over WebSockets (replacing polling)
+- [ ] Tighter live sync via SSE (server→client push, replacing 2s polling; SSE over WebSockets since updates are one-directional and `EventSource` auto-reconnects when phones lock)
 - [ ] Joker-rule helper prompts
 
 ## License
