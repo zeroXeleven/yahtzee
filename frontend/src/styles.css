@@ -49,6 +49,14 @@ body {
   margin-bottom: 4px;
 }
 
+.version {
+  text-align: center;
+  margin: -6px 0 16px;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);

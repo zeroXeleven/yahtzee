@@ -40,6 +40,8 @@ export const CATEGORY_META: Record<string, CategoryMeta> = Object.fromEntries(
   ALL_CATEGORIES.map((c) => [c.key, c]),
 )
 
+export const APP_VERSION = 'v1.0'
+
 export const PLAYER_COLORS = [
   '#e11d48', '#2563eb', '#16a34a', '#d97706',
   '#7c3aed', '#0891b2', '#db2777', '#4b5563',

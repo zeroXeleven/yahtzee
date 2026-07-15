@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
 import type { GameState, GameSummary, Player } from './types'
-import { PLAYER_COLORS } from './constants'
+import { APP_VERSION, PLAYER_COLORS } from './constants'
 import GameScreen from './GameScreen'
 import HistoryScreen from './HistoryScreen'
 import StatsScreen from './StatsScreen'
@@ -156,6 +156,7 @@ function ProfileScreen(props: {
         <span className="logo-dice">🎲🎲🎲🎲🎲</span>
         Yahtzee
       </h1>
+      <div className="version">{APP_VERSION}</div>
 
       {active.length > 0 && (
         <div className="card">
@@ -397,6 +398,8 @@ function LobbyScreen(props: {
       </div>
 
       {err && <p className="inline-error center">{err}</p>}
+
+      <div className="version">{APP_VERSION}</div>
     </div>
   )
 }
