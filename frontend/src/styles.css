@@ -33,7 +33,7 @@ body {
 .screen {
   max-width: 760px;
   margin: 0 auto;
-  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(48px + env(safe-area-inset-bottom));
 }
 
 .logo {
@@ -50,11 +50,19 @@ body {
 }
 
 .version {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
   text-align: center;
-  margin: -6px 0 16px;
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   color: var(--muted);
+  /* fade to page bg so scrolled content never overlaps the label */
+  background: linear-gradient(to top, var(--bg) 55%, transparent);
+  pointer-events: none;
+  z-index: 5;
 }
 
 .card {
