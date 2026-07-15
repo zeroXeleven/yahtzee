@@ -15,19 +15,29 @@ export default function GameScreen(props: {
   const [editing, setEditing] = useState<Editing>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  // Poll for other players' entries (shared scoreboard).
+  // Re-fetch shared game state (on a live event, or the safety-net poll).
   const refresh = useCallback(async () => {
     try {
       setGame(await api.getGame(props.code))
     } catch {
-      /* ignore transient polling errors */
+      /* ignore transient fetch errors */
     }
   }, [props.code])
 
+  // Live updates via Server-Sent Events. EventSource auto-reconnects when a
+  // phone locks/backgrounds, so there's no reconnect logic to maintain. The
+  // slow poll is a fallback in case a proxy blocks SSE.
   useEffect(() => {
-    const id = setInterval(refresh, 2000)
-    return () => clearInterval(id)
-  }, [refresh])
+    const es = new EventSource(`/api/games/${props.code}/events`)
+    es.addEventListener('update', () => {
+      void refresh()
+    })
+    const poll = setInterval(refresh, 15000)
+    return () => {
+      es.close()
+      clearInterval(poll)
+    }
+  }, [refresh, props.code])
 
   const finished = game.status === 'finished'
 

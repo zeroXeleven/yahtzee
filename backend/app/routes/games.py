@@ -4,12 +4,15 @@ The full game state (players, scores, live totals) is returned from most
 endpoints and polled by clients for the shared-scoreboard experience.
 """
 
+import asyncio
 import random
 import sqlite3
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 from ..db import get_db
+from ..events import notify, subscribe, unsubscribe
 from ..models import BonusEntry, GameCreate, JoinGame, ScoreEntry
 from ..scoring import (
     ALL_CATEGORIES,
@@ -114,6 +117,7 @@ def create_game(body: GameCreate):
         raise HTTPException(400, f"could not create game: {e}")
     finally:
         conn.close()
+    notify(code)
     return _game_state(code)
 
 
@@ -180,11 +184,54 @@ def delete_game(code: str):
             raise HTTPException(404, "game not found")
     finally:
         conn.close()
+    notify(code)
 
 
 @router.get("/games/{code}")
 def get_game(code: str):
     return _game_state(code)
+
+
+@router.get("/games/{code}/events")
+async def game_events(code: str, request: Request):
+    """Server-Sent Events stream. Emits an `update` event whenever the game
+    changes; the client re-fetches state on each. A comment ping every 15s keeps
+    the connection alive and doubles as the disconnect-detection window."""
+    conn = get_db()
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM games WHERE join_code = ?", (code,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not exists:
+        raise HTTPException(404, "game not found")
+
+    queue = subscribe(code)
+
+    async def stream():
+        try:
+            yield "retry: 3000\n\n"
+            yield "event: update\ndata: 1\n\n"  # prompt an immediate fetch
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    await asyncio.wait_for(queue.get(), timeout=15)
+                    yield "event: update\ndata: 1\n\n"
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+        finally:
+            unsubscribe(code, queue)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # don't let a proxy buffer the stream
+        },
+    )
 
 
 @router.post("/games/{code}/join", status_code=201)
@@ -213,6 +260,7 @@ def join_game(code: str, body: JoinGame):
             raise HTTPException(409, "that player is already in this game")
     finally:
         conn.close()
+    notify(code)
     return _game_state(code)
 
 
@@ -240,6 +288,7 @@ def enter_score(code: str, body: ScoreEntry):
         conn.commit()
     finally:
         conn.close()
+    notify(code)
     return _game_state(code)
 
 
@@ -263,6 +312,7 @@ def set_bonus(code: str, body: BonusEntry):
         conn.commit()
     finally:
         conn.close()
+    notify(code)
     return _game_state(code)
 
 
@@ -290,4 +340,5 @@ def end_game(code: str):
         conn.commit()
     finally:
         conn.close()
+    notify(code)
     return _game_state(code)
