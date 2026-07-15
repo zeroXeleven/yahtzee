@@ -473,6 +473,123 @@ button {
   margin: 14px auto 0;
 }
 
+/* single-player scorecard (the game screen) */
+.board-btn {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.my-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.section-label {
+  background: var(--card-2);
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.my-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.my-label {
+  font-size: 1rem;
+}
+
+.my-val {
+  min-width: 84px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  color: var(--muted);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.my-val.filled {
+  color: var(--text);
+  border-color: var(--primary);
+}
+
+.my-val.scratch {
+  color: #64748b;
+}
+
+.my-val.readonly {
+  cursor: default;
+  border-color: var(--line);
+  background: transparent;
+}
+
+.my-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.my-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  background: var(--card-2);
+  font-size: 1.15rem;
+}
+
+.my-total b {
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+/* leaderboard dialog */
+.board-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.board-modal {
+  width: 100%;
+  max-width: 760px;
+  max-height: 85vh;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.board-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 1.15rem;
+}
+
 /* active games (quick rejoin) */
 .active-game {
   display: flex;
@@ -519,6 +636,13 @@ button {
   color: #a5b4fc;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.ag-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 
 /* history + stats */

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from './api'
 import type { CategoryMeta } from './constants'
-import type { GameState, GamePlayer, Player } from './types'
+import type { GamePlayer, GameState, Player } from './types'
 import { CATEGORY_META, LOWER_CATEGORIES, UPPER_CATEGORIES } from './constants'
+import Scoreboard from './Scoreboard'
 
-type Editing = { gpId: number; catKey: string } | null
-
+// On the game screen you see and score only your own column. The full grid is
+// available on demand via the Leaderboard dialog (and the spectator view).
 export default function GameScreen(props: {
   code: string
   me: Player
@@ -13,10 +14,10 @@ export default function GameScreen(props: {
   onLeave: () => void
 }) {
   const [game, setGame] = useState<GameState>(props.initial)
-  const [editing, setEditing] = useState<Editing>(null)
+  const [editing, setEditing] = useState<string | null>(null) // category key
+  const [showBoard, setShowBoard] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
-  // Re-fetch shared game state (on a live event, or the safety-net poll).
   const refresh = useCallback(async () => {
     try {
       setGame(await api.getGame(props.code))
@@ -25,14 +26,10 @@ export default function GameScreen(props: {
     }
   }, [props.code])
 
-  // Live updates via Server-Sent Events. EventSource auto-reconnects when a
-  // phone locks/backgrounds, so there's no reconnect logic to maintain. The
-  // slow poll is a fallback in case a proxy blocks SSE.
+  // Live updates via SSE (auto-reconnects on phone lock); slow poll as fallback.
   useEffect(() => {
     const es = new EventSource(`/api/games/${props.code}/events`)
-    es.addEventListener('update', () => {
-      void refresh()
-    })
+    es.addEventListener('update', () => void refresh())
     const poll = setInterval(refresh, 15000)
     return () => {
       es.close()
@@ -41,12 +38,13 @@ export default function GameScreen(props: {
   }, [refresh, props.code])
 
   const finished = game.status === 'finished'
-  const meInGame = game.players.some((p) => p.player_id === props.me.id)
+  const me = game.players.find((p) => p.player_id === props.me.id)
 
-  // Returns an error message to show in the sheet, or null on success.
-  async function submitScore(gpId: number, catKey: string, value: number): Promise<string | null> {
+  // Returns an error message for the sheet, or null on success.
+  async function submitScore(catKey: string, value: number): Promise<string | null> {
+    if (!me) return 'you are not a player in this game'
     try {
-      setGame(await api.score(props.code, gpId, catKey, value))
+      setGame(await api.score(props.code, me.game_player_id, catKey, value))
       setEditing(null)
       return null
     } catch (e) {
@@ -54,11 +52,12 @@ export default function GameScreen(props: {
     }
   }
 
-  async function changeBonus(p: GamePlayer, delta: number) {
-    const next = Math.max(0, p.yahtzee_bonus_count + delta)
+  async function changeBonus(delta: number) {
+    if (!me) return
+    const next = Math.max(0, me.yahtzee_bonus_count + delta)
     setErr(null)
     try {
-      setGame(await api.bonus(props.code, p.game_player_id, next))
+      setGame(await api.bonus(props.code, me.game_player_id, next))
     } catch (e) {
       setErr((e as Error).message)
     }
@@ -78,8 +77,7 @@ export default function GameScreen(props: {
       ? game.players.find((p) => p.player_id === game.winner_player_id)
       : null
 
-  const editCat = editing ? CATEGORY_META[editing.catKey] : null
-  const editPlayer = editing ? game.players.find((p) => p.game_player_id === editing.gpId) : null
+  const editCat: CategoryMeta | null = editing ? CATEGORY_META[editing] : null
 
   return (
     <div className="screen game">
@@ -99,11 +97,10 @@ export default function GameScreen(props: {
         )}
       </div>
 
-      {meInGame ? (
+      {me ? (
         <div className="you-bar">
           You’re <span className="dot" style={{ background: props.me.color }} />
           <b>{props.me.name}</b>
-          <span className="muted"> · you score your own column</span>
         </div>
       ) : (
         <div className="you-bar muted">Viewing — you’re not a player in this game</div>
@@ -117,144 +114,130 @@ export default function GameScreen(props: {
 
       {err && <p className="inline-error center">{err}</p>}
 
-      <div className="card-table">
-        <table className="scorecard">
-          <thead>
-            <tr>
-              <th className="rowhead corner">Category</th>
-              {game.players.map((p) => {
-                const isMe = p.player_id === props.me.id
-                return (
-                  <th key={p.game_player_id} className={'playercol' + (isMe ? ' me' : '')}>
-                    <span className="dot" style={{ background: p.color }} />
-                    {p.name}
-                    {isMe && <span className="you-tag">you</span>}
-                  </th>
-                )
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            <SectionLabel span={game.players.length + 1} text="Upper" />
-            {UPPER_CATEGORIES.map((cat) => (
-              <tr key={cat.key}>
-                <td className="rowhead">{cat.label}</td>
-                {game.players.map((p) => (
-                  <ScoreCell
-                    key={p.game_player_id}
-                    value={p.scores[cat.key]}
-                    editable={p.player_id === props.me.id && !finished}
-                    onClick={() => setEditing({ gpId: p.game_player_id, catKey: cat.key })}
-                  />
-                ))}
-              </tr>
-            ))}
-            <tr className="subtotal">
-              <td className="rowhead">Bonus (63+ → 35)</td>
-              {game.players.map((p) => (
-                <td key={p.game_player_id} className="num muted">
-                  {p.totals.upper_subtotal}/63{p.totals.upper_bonus ? ' +35' : ''}
-                </td>
-              ))}
-            </tr>
+      <button className="secondary board-btn" onClick={() => setShowBoard(true)}>
+        📊 Leaderboard
+      </button>
 
-            <SectionLabel span={game.players.length + 1} text="Lower" />
-            {LOWER_CATEGORIES.map((cat) => (
-              <tr key={cat.key}>
-                <td className="rowhead">{cat.label}</td>
-                {game.players.map((p) => (
-                  <ScoreCell
-                    key={p.game_player_id}
-                    value={p.scores[cat.key]}
-                    editable={p.player_id === props.me.id && !finished}
-                    onClick={() => setEditing({ gpId: p.game_player_id, catKey: cat.key })}
-                  />
-                ))}
-              </tr>
-            ))}
-            <tr className="subtotal">
-              <td className="rowhead">Yahtzee bonus (+100)</td>
-              {game.players.map((p) => {
-                const isMe = p.player_id === props.me.id
-                const canBonus = isMe && p.scores['yahtzee'] === 50 && !finished
-                return (
-                  <td key={p.game_player_id} className="num">
-                    {isMe && !finished ? (
-                      <div className="stepper">
-                        <button
-                          disabled={p.yahtzee_bonus_count === 0}
-                          onClick={() => changeBonus(p, -1)}
-                        >
-                          −
-                        </button>
-                        <span>{p.yahtzee_bonus_count}</span>
-                        <button disabled={!canBonus} onClick={() => changeBonus(p, +1)}>
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <span>{p.yahtzee_bonus_count}</span>
-                    )}
-                  </td>
-                )
-              })}
-            </tr>
+      {me ? (
+        <MyScorecard
+          me={me}
+          finished={finished}
+          onEdit={(catKey) => setEditing(catKey)}
+          onBonus={changeBonus}
+        />
+      ) : (
+        <Scoreboard game={game} meId={props.me.id} />
+      )}
 
-            <tr className="grand">
-              <td className="rowhead">Total</td>
-              {game.players.map((p) => (
-                <td key={p.game_player_id} className="num total">
-                  {p.totals.grand_total}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {showBoard && (
+        <div className="board-modal-backdrop" onClick={() => setShowBoard(false)}>
+          <div className="board-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="board-modal-head">
+              <b>Leaderboard</b>
+              <button className="link" onClick={() => setShowBoard(false)}>
+                close
+              </button>
+            </div>
+            <Scoreboard game={game} meId={props.me.id} />
+          </div>
+        </div>
+      )}
 
-      {editing && editCat && editPlayer && (
+      {editing && editCat && me && (
         <ScoreSheet
-          playerName={editPlayer.name}
+          playerName={me.name}
           category={editCat}
-          current={editPlayer.scores[editCat.key]}
+          current={me.scores[editing]}
           onCancel={() => setEditing(null)}
-          onPick={(v) => submitScore(editing.gpId, editing.catKey, v)}
+          onPick={(v) => submitScore(editing, v)}
         />
       )}
     </div>
   )
 }
 
-function SectionLabel(props: { span: number; text: string }) {
+function MyScorecard(props: {
+  me: GamePlayer
+  finished: boolean
+  onEdit: (catKey: string) => void
+  onBonus: (delta: number) => void
+}) {
+  const { me, finished } = props
+  const canBonus = me.scores['yahtzee'] === 50 && !finished
+
   return (
-    <tr className="section">
-      <td colSpan={props.span}>{props.text}</td>
-    </tr>
+    <div className="my-card">
+      <div className="section-label">Upper</div>
+      {UPPER_CATEGORIES.map((cat) => (
+        <MyRow
+          key={cat.key}
+          label={cat.label}
+          value={me.scores[cat.key]}
+          editable={!finished}
+          onClick={() => props.onEdit(cat.key)}
+        />
+      ))}
+      <div className="my-sub">
+        <span>Upper bonus</span>
+        <span className="muted">
+          {me.totals.upper_subtotal}/63{me.totals.upper_bonus ? '  +35' : ''}
+        </span>
+      </div>
+
+      <div className="section-label">Lower</div>
+      {LOWER_CATEGORIES.map((cat) => (
+        <MyRow
+          key={cat.key}
+          label={cat.label}
+          value={me.scores[cat.key]}
+          editable={!finished}
+          onClick={() => props.onEdit(cat.key)}
+        />
+      ))}
+      <div className="my-sub">
+        <span>Yahtzee bonus (+100)</span>
+        {!finished ? (
+          <div className="stepper">
+            <button disabled={me.yahtzee_bonus_count === 0} onClick={() => props.onBonus(-1)}>
+              −
+            </button>
+            <span>{me.yahtzee_bonus_count}</span>
+            <button disabled={!canBonus} onClick={() => props.onBonus(1)}>
+              +
+            </button>
+          </div>
+        ) : (
+          <span className="muted">{me.yahtzee_bonus_count}</span>
+        )}
+      </div>
+
+      <div className="my-total">
+        <span>Total</span>
+        <b>{me.totals.grand_total}</b>
+      </div>
+    </div>
   )
 }
 
-function ScoreCell(props: {
+function MyRow(props: {
+  label: string
   value: number | undefined
   editable: boolean
   onClick: () => void
 }) {
   const filled = props.value !== undefined
-  const cls =
-    'cell' + (filled ? ' filled' : '') + (props.value === 0 ? ' scratch' : '')
-
-  if (!props.editable) {
-    return (
-      <td className="num">
-        <span className={cls + ' readonly'}>{filled ? props.value : ''}</span>
-      </td>
-    )
-  }
+  const valCls = (filled ? ' filled' : '') + (props.value === 0 ? ' scratch' : '')
   return (
-    <td className="num">
-      <button className={cls} onClick={props.onClick}>
-        {filled ? props.value : '+'}
-      </button>
-    </td>
+    <div className="my-row">
+      <span className="my-label">{props.label}</span>
+      {props.editable ? (
+        <button className={'my-val' + valCls} onClick={props.onClick}>
+          {filled ? props.value : 'enter'}
+        </button>
+      ) : (
+        <span className={'my-val readonly' + valCls}>{filled ? props.value : '—'}</span>
+      )}
+    </div>
   )
 }
 
@@ -271,14 +254,12 @@ function ScoreSheet(props: {
   )
   const [err, setErr] = useState<string | null>(null)
 
-  // Submit a value; server errors come back and render inside the sheet.
   async function pick(value: number) {
     setErr(null)
     const problem = await props.onPick(value)
     if (problem) setErr(problem)
   }
 
-  // Sum entry: validate the range client-side for instant, contextual feedback.
   function saveSum() {
     const v = Number(sumValue || 0)
     if (v !== 0 && (v < 5 || v > 30)) {

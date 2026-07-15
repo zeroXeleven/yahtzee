@@ -5,6 +5,7 @@ import { PLAYER_COLORS } from './constants'
 import GameScreen from './GameScreen'
 import HistoryScreen from './HistoryScreen'
 import StatsScreen from './StatsScreen'
+import SpectatorScreen from './SpectatorScreen'
 
 const PROFILE_KEY = 'yahtzee_profile_id'
 
@@ -15,6 +16,7 @@ export default function App() {
   const [profile, setProfile] = useState<Player | null>(null)
   const [game, setGame] = useState<GameState | null>(null)
   const [screen, setScreen] = useState<Screen>('home')
+  const [spectate, setSpectate] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Load profiles once; restore the last-used profile on this device.
@@ -53,11 +55,17 @@ export default function App() {
     )
   }
 
+  // Live leaderboard works without a profile — meant for a shared screen.
+  if (spectate) {
+    return <SpectatorScreen code={spectate} onExit={() => setSpectate(null)} />
+  }
+
   if (!profile) {
     return (
       <ProfileScreen
         players={players}
         onChoose={chooseProfile}
+        onSpectate={setSpectate}
         onCreated={(p) => {
           setPlayers((prev) => [...prev, p].sort((a, b) => a.name.localeCompare(b.name)))
           chooseProfile(p)
@@ -104,6 +112,7 @@ export default function App() {
       onSignOut={signOut}
       onHistory={() => setScreen('history')}
       onStats={() => setScreen('stats')}
+      onSpectate={setSpectate}
     />
   )
 }
@@ -112,11 +121,21 @@ function ProfileScreen(props: {
   players: Player[]
   onChoose: (p: Player) => void
   onCreated: (p: Player) => void
+  onSpectate: (code: string) => void
 }) {
   const [name, setName] = useState('')
   const [color, setColor] = useState(PLAYER_COLORS[0])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [active, setActive] = useState<GameSummary[]>([])
+
+  // All in-progress games — open one as a live leaderboard (no login needed).
+  useEffect(() => {
+    api
+      .listGames('active')
+      .then(setActive)
+      .catch(() => {})
+  }, [])
 
   async function create() {
     if (!name.trim()) return
@@ -137,6 +156,36 @@ function ProfileScreen(props: {
         <span className="logo-dice">🎲🎲🎲🎲🎲</span>
         Yahtzee
       </h1>
+
+      {active.length > 0 && (
+        <div className="card">
+          <h2>Active games</h2>
+          <p className="muted">Open a live leaderboard — no need to pick a player.</p>
+          {active.map((g) => (
+            <button
+              key={g.join_code}
+              className="active-game"
+              onClick={() => props.onSpectate(g.join_code)}
+            >
+              <span className="ag-head">
+                <span className="code-badge">
+                  <b>{g.join_code}</b>
+                </span>
+                <span className="ag-players">
+                  {g.results.map((r) => (
+                    <span key={r.player_id} className="ag-player">
+                      <span className="dot" style={{ background: r.color }} />
+                      {r.name} {r.grand_total}
+                    </span>
+                  ))}
+                </span>
+              </span>
+              <span className="ag-rejoin">Leaderboard →</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="card">
         <h2>Who's playing?</h2>
         {props.players.length > 0 && (
@@ -192,6 +241,7 @@ function LobbyScreen(props: {
   onSignOut: () => void
   onHistory: () => void
   onStats: () => void
+  onSpectate: (code: string) => void
 }) {
   const [code, setCode] = useState('')
   const [selected, setSelected] = useState<number[]>([props.me.id])
@@ -274,8 +324,8 @@ function LobbyScreen(props: {
         <div className="card">
           <h2>Your active games</h2>
           {myActive.map((g) => (
-            <button key={g.join_code} className="active-game" onClick={() => rejoin(g.join_code)}>
-              <span className="ag-head">
+            <div key={g.join_code} className="active-game">
+              <div className="ag-head">
                 <span className="code-badge">
                   <b>{g.join_code}</b>
                 </span>
@@ -287,9 +337,16 @@ function LobbyScreen(props: {
                     </span>
                   ))}
                 </span>
-              </span>
-              <span className="ag-rejoin">Rejoin →</span>
-            </button>
+              </div>
+              <div className="ag-actions">
+                <button className="link" onClick={() => props.onSpectate(g.join_code)}>
+                  board
+                </button>
+                <button className="ag-rejoin link" onClick={() => rejoin(g.join_code)}>
+                  Rejoin →
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}
